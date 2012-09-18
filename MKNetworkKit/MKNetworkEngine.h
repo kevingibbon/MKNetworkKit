@@ -197,7 +197,19 @@
  *  The hostname of the engine is *NOT* prefixed.
  *  The image is returned to the caller via MKNKImageBlock callback block. 
  */
-- (MKNetworkOperation*)imageAtURL:(NSURL *)url onCompletion:(MKNKImageBlock) imageFetchedBlock;
+- (MKNetworkOperation*)imageAtURL:(NSURL *)url retryAttempt:(NSInteger)retryAttempt onCompletion:(MKNKImageBlock) imageFetchedBlock;
+
+/*!
+ *  @abstract Preloads Operations into cache
+ *
+ *  @discussion
+ *	Prefetches operations with the given URLs.
+ *  The hostname of the engine is *NOT* prefixed.
+ *  The cache will be preloaded with given operations.
+ */
+- (void)preloadOperationsIntoCache:(NSArray *)urls retryAttempt:(NSInteger)retryAttempt onCompletion:(MKNKPrefetchCompletionBlock)completionBlock;
+
+- (void)cancelPreloadCacheOperations:(NSArray *)urls;
 /*!
  *  @abstract Enqueues your operation into the shared queue
  *  
@@ -291,6 +303,8 @@
  *  Overriding this method is optional
  */
 -(int) cacheMemoryCost;
+
+@property (nonatomic) NSOperationQueuePriority queuePriority;
 
 /*!
  *  @abstract Enable Caching

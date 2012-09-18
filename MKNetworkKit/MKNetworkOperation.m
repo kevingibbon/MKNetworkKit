@@ -538,6 +538,14 @@
 - (id)initWithURLString:(NSString *)aURLString
                  params:(NSMutableDictionary *)params
              httpMethod:(NSString *)method
+{
+    return [self initWithURLString:aURLString params:params httpMethod:method timeoutInterval:kMKNetworkKitRequestTimeOutInSeconds];
+}
+
+- (id)initWithURLString:(NSString *)aURLString
+                 params:(NSMutableDictionary *)params
+             httpMethod:(NSString *)method
+        timeoutInterval:(NSTimeInterval)timeoutInterval
 
 {	
   if((self = [super init])) {
@@ -576,7 +584,7 @@
     
     self.request = [NSMutableURLRequest requestWithURL:finalURL                                                           
                                            cachePolicy:NSURLRequestReloadIgnoringLocalCacheData                                            
-                                       timeoutInterval:kMKNetworkKitRequestTimeOutInSeconds];
+                                       timeoutInterval:timeoutInterval];
     
     [self.request setHTTPMethod:method];
     
