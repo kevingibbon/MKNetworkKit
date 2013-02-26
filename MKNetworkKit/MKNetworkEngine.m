@@ -336,22 +336,13 @@ static NSOperationQueue *_sharedNetworkQueue;
   return [self operationWithURLString:urlString params:body httpMethod:@"GET"];
 }
 
--(MKNetworkOperation*) operationWithURLString:(NSString*) urlString
-                                       params:(NSMutableDictionary*) body
-                                   httpMethod:(NSString*)method
-                              timeoutInterval:(NSTimeInterval)timeoutInterval
-{
-    MKNetworkOperation *operation = [[self.customOperationSubclass alloc] initWithURLString:urlString params:body httpMethod:method timeoutInterval:timeoutInterval];
-    
-    [self prepareHeaders:operation];
-    return operation;
-}
 
 -(MKNetworkOperation*) operationWithURLString:(NSString*) urlString
                                        params:(NSMutableDictionary*) body
                                    httpMethod:(NSString*)method {
   
   MKNetworkOperation *operation = [[self.customOperationSubclass alloc] initWithURLString:urlString params:body httpMethod:method];
+  
   [self prepareHeaders:operation];
   return operation;
 }
@@ -379,16 +370,12 @@ static NSOperationQueue *_sharedNetworkQueue;
 }
 
 -(void) enqueueOperation:(MKNetworkOperation*) operation {
-    
+  
   [self enqueueOperation:operation forceReload:NO];
 }
 
 -(void) enqueueOperation:(MKNetworkOperation*) operation forceReload:(BOOL) forceReload {
   
-    if (self.queuePriority)
-    {
-        [operation setQueuePriority:self.queuePriority];
-    }
   NSParameterAssert(operation != nil);
   // Grab on to the current queue (We need it later)
   dispatch_queue_t originalQueue = dispatch_get_current_queue();
@@ -435,8 +422,6 @@ static NSOperationQueue *_sharedNetworkQueue;
           
           [operation updateOperationBasedOnPreviousHeaders:savedCacheHeaders];
         }
-        #warning TODO. Does not make additional server call if retrieved from cache.
-        return;
       }
     }
     
@@ -444,6 +429,7 @@ static NSOperationQueue *_sharedNetworkQueue;
       
       NSUInteger index = [_sharedNetworkQueue.operations indexOfObject:operation];
       if(index == NSNotFound) {
+        
         if(expiryTimeInSeconds <= 0)
           [_sharedNetworkQueue addOperation:operation];
         else if(forceReload)
@@ -459,6 +445,7 @@ static NSOperationQueue *_sharedNetworkQueue;
       
     });
     } else {
+      
       [_sharedNetworkQueue addOperation:operation];
     }
 
@@ -470,70 +457,8 @@ static NSOperationQueue *_sharedNetworkQueue;
   });
 }
 
-- (void)preloadOperationsIntoCache:(NSArray *)urls retryAttempt:(NSInteger)retryAttempt onCompletion:(MKNKPrefetchCompletionBlock)completionBlock
+- (MKNetworkOperation*)imageAtURL:(NSURL *)url onCompletion:(MKNKImageBlock) imageFetchedBlock
 {
-    if (retryAttempt > kMKNetworkKitRequestImageRetryAttempts) return;
-    if(![self isCacheEnabled])
-    {
-        DLog(@"preloadOperationIntoCache: requires caching to be enabled.")
-        return;
-    }
-    if (urls == nil) return;
-    __block NSInteger numberImagesCompleted = 0;
-    for (NSURL *url in urls)
-    {
-        MKNetworkOperation *op = [self operationWithURLString:[url absoluteString] params:nil httpMethod:@"GET" timeoutInterval:kMKNetworkKitRequestImageTimeOutInSeconds * retryAttempt];
-        [op setQueuePriority:NSOperationQueuePriorityNormal];
-        [op onCompletion:^(MKNetworkOperation *completedOperation) {
-            numberImagesCompleted++;
-            NSLog(@"%@", url);
-            if (retryAttempt == 1 && numberImagesCompleted >= [urls count])
-            {
-                completionBlock();
-            }
-        } onError:^(NSError *error) {
-            #warning TODO track error completion
-            numberImagesCompleted++;
-            if (retryAttempt == 1 && numberImagesCompleted >= [urls count])
-            {
-                completionBlock();
-            }
-            if ( error != nil && [error code] == -1001 ) {
-                NSArray *urlArray = [[NSArray alloc] initWithObjects:url, nil];
-                [self preloadOperationsIntoCache:urlArray retryAttempt:retryAttempt + 1 onCompletion:^{
-                    
-                }];
-            }
-        }];
-        [self enqueueOperation:op];
-    }
-}
-
-- (void)cancelPreloadCacheOperations:(NSArray *)urls
-{
-    if(![self isCacheEnabled])
-    {
-        DLog(@"preloadOperationIntoCache: requires caching to be enabled.")
-        return;
-    }
-    if ([_sharedNetworkQueue.operations count] == 0) return;
-    if (urls == nil) return;
-    //NSLog(@"Number of operations in queue: %i", [_sharedNetworkQueue.operations count]);
-    for (NSURL *url in urls)
-    {
-        MKNetworkOperation *op = [self operationWithURLString:[url absoluteString]];
-        NSUInteger index = [_sharedNetworkQueue.operations indexOfObject:op];
-        if(index != NSNotFound) {
-            MKNetworkOperation *queuedOperation = (MKNetworkOperation*) [_sharedNetworkQueue.operations objectAtIndex:index];
-            [queuedOperation cancel];
-        }
-    }
-    //NSLog(@"Number of operations in queue after cancel: %i", [_sharedNetworkQueue.operations count]);
-}
-
-- (MKNetworkOperation*)imageAtURL:(NSURL *)url retryAttempt:(NSInteger)retryAttempt onCompletion:(MKNKImageBlock) imageFetchedBlock
-{
-    if (retryAttempt > kMKNetworkKitRequestImageRetryAttempts) return nil;
 #ifdef DEBUG
   // I could enable caching here, but that hits performance and inturn affects table view scrolling
   // if imageAtURL is called for loading thumbnails.
@@ -544,7 +469,7 @@ static NSOperationQueue *_sharedNetworkQueue;
       return nil;
     }
   
-  MKNetworkOperation *op = [self operationWithURLString:[url absoluteString] params:nil httpMethod:@"GET" timeoutInterval:retryAttempt * kMKNetworkKitRequestImageTimeOutInSeconds];
+  MKNetworkOperation *op = [self operationWithURLString:[url absoluteString]];
   
   [op 
    onCompletion:^(MKNetworkOperation *completedOperation)
@@ -555,10 +480,8 @@ static NSOperationQueue *_sharedNetworkQueue;
      
    }
    onError:^(NSError* error) {
-       DLog(@"%i", [error code]);
-       if ( error != nil && [error code] == -1001 ) {
-           [self imageAtURL:url retryAttempt:retryAttempt + 1 onCompletion:imageFetchedBlock];
-       }
+     
+     DLog(@"%@", error);
    }];    
   
   [self enqueueOperation:op];

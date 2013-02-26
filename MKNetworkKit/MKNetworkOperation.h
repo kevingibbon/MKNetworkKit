@@ -33,7 +33,6 @@ typedef enum {
 
 typedef void (^MKNKProgressBlock)(double progress);
 typedef void (^MKNKResponseBlock)(MKNetworkOperation* completedOperation);
-typedef void (^MKNKPrefetchCompletionBlock) ();
 #if TARGET_OS_IPHONE
 typedef void (^MKNKImageBlock) (UIImage* fetchedImage, NSURL* url, BOOL isInCache);
 #elif TARGET_OS_MAC
@@ -545,9 +544,4 @@ typedef enum {
 - (id)initWithURLString:(NSString *)aURLString
                  params:(NSMutableDictionary *)params
              httpMethod:(NSString *)method;
-
-- (id)initWithURLString:(NSString *)aURLString
-                 params:(NSMutableDictionary *)params
-             httpMethod:(NSString *)method
-        timeoutInterval:(NSTimeInterval)timeoutInterval;
 @end
